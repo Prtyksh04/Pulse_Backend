@@ -1,0 +1,49 @@
+import bcrypt from "bcrypt";
+import createHttpError from "http-errors";
+import { createHmac } from "crypto";
+import 'dotenv/config';
+import jwt from "jsonwebtoken";
+export const hashString = async (password) => {
+    try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        return hashedPassword;
+    }
+    catch (error) {
+        throw createHttpError("Error in hashing the password ");
+    }
+};
+export const verifyPassword = async (password, hashedPassword) => {
+    try {
+        const match = bcrypt.compare(password, hashedPassword);
+        return match;
+    }
+    catch (error) {
+        throw createHttpError("Error verifying Password");
+    }
+};
+export const generateApiKey = async (data) => {
+    const combinedData = `${data.email}-${data.password}`;
+    const secret = process.env.GENERATE_API_KEY;
+    if (!secret) {
+        throw new Error('API_KEY_SECRET is not defined in the environment variables.');
+    }
+    const apiKey = createHmac("sha256", secret).update(combinedData).digest("hex");
+    return apiKey;
+};
+export const generateJwtToken = async (userId) => {
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+    });
+    return token;
+};
+export const verifyJwtToken = async (token) => {
+    console.log(token);
+    try {
+        const decode = jwt.verify(token, process.env.JWT_SECRET);
+        return decode;
+    }
+    catch (error) {
+        throw createHttpError(401, "Invalid request");
+    }
+};

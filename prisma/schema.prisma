@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model pulseUser {
+  apiKey   String    @id @unique
+  email    String    @unique
+  password String
+  projects Project[]
+}
+
+model Project {
+  id          Int         @id @default(autoincrement())
+  projectName String      
+  signupType  SignupType?
+  owner       pulseUser   @relation(fields: [userId], references: [apiKey])
+  userId      String
+}
+
+enum SignupType {
+  EMAIL_PASSWORD
+  EMAIL_USERNAME_PASSWORD
+  GOOGLE_AUTH
+  GITHUB_AUTH
+}
