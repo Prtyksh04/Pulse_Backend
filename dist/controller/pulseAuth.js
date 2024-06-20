@@ -16,7 +16,6 @@ export const PulseSignUp = async (req, res, next) => {
                 email,
                 password: hashedPassword,
                 apiKey,
-                signupType: "EMAIL_PASSWORD"
             }
         });
         res.status(201).json({

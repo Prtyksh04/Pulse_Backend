@@ -1,7 +1,7 @@
 import createHttpError from "http-errors";
-import { hashString } from "../utility/AuthUtility.js";
+import { generateJwtToken, hashString } from "../utility/AuthUtility.js";
 import { PrismaClient } from "@prisma/client";
-import { verifyJwtToken } from "../utility/AuthUtility.js";
+import { verifyJwtToken, verifyUser } from "../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 export const createApplication = async (req, res, next) => {
     const { applicationName, signupType } = req.body;
@@ -26,24 +26,26 @@ export const createApplication = async (req, res, next) => {
         }
         const decoded = await verifyJwtToken(token);
         const apiKey = decoded.userId;
-        const updateRequestype = await prisma.pulseUser.update({
-            where: {
-                apiKey: apiKey
-            },
-            data: {
-                signupType: signupType
-            },
-            select: {
-                signupType: true,
-            }
-        });
+        const verifieduser = verifyUser(apiKey);
+        if (!verifieduser) {
+            throw createHttpError(401, "Invalid Credentials");
+        }
         const Newproject = await prisma.project.create({
             data: {
                 projectName: applicationName,
-                userId: apiKey
+                userId: apiKey,
+                signupType: signupType
             }
         });
-        res.json({ update: updateRequestype, project: Newproject });
+        const project = await generateJwtToken(Newproject.projectName);
+        res.status(200).json({
+            message: "Project created Successfully ",
+            project: {
+                token: token,
+                projectName: project
+            }
+        });
+        res.json({ project: Newproject });
     }
     catch (error) {
         next(error);

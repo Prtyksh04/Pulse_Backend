@@ -15,11 +15,24 @@ model pulseUser {
 }
 
 model Project {
-  id          Int         @id @default(autoincrement())
-  projectName String      
+  id          Int          @id @default(autoincrement())
+  projectName String       @unique
   signupType  SignupType?
-  owner       pulseUser   @relation(fields: [userId], references: [apiKey])
+  owner       pulseUser    @relation(fields: [userId], references: [apiKey])
   userId      String
+  ClientUser       ClientUser[]
+  @@unique([userId, projectName])
+}
+
+model ClientUser {
+  id         Int        @id @default(autoincrement())
+  email      String     @unique
+  password   String?
+  username   String?
+  googleId   String?
+  githubId   String?
+  project    Project    @relation(fields: [projectId], references: [id])
+  projectId  Int
 }
 
 enum SignupType {

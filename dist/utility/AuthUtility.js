@@ -3,6 +3,8 @@ import createHttpError from "http-errors";
 import { createHmac } from "crypto";
 import 'dotenv/config';
 import jwt from "jsonwebtoken";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient;
 export const hashString = async (password) => {
     try {
         const salt = await bcrypt.genSalt(10);
@@ -38,7 +40,6 @@ export const generateJwtToken = async (userId) => {
     return token;
 };
 export const verifyJwtToken = async (token) => {
-    console.log(token);
     try {
         const decode = jwt.verify(token, process.env.JWT_SECRET);
         return decode;
@@ -46,4 +47,12 @@ export const verifyJwtToken = async (token) => {
     catch (error) {
         throw createHttpError(401, "Invalid request");
     }
+};
+export const verifyUser = async (apiKey) => {
+    const verifiedUser = await prisma.pulseUser.findUnique({
+        where: {
+            apiKey
+        }
+    });
+    return verifiedUser;
 };

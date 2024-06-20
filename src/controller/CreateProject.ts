@@ -1,7 +1,7 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import createHttpError from "http-errors";
 import { projectBodytype } from "../schema/projectSchema.js";
-import { hashString } from "../utility/AuthUtility.js";
+import { generateJwtToken, hashString } from "../utility/AuthUtility.js";
 import { PrismaClient, SignupType } from "@prisma/client";
 import { verifyJwtToken , verifyUser} from "../utility/AuthUtility.js";
 const prisma = new PrismaClient();
@@ -33,11 +33,21 @@ export const createApplication: RequestHandler = async (req: Request<{}, {}, pro
         if(!verifieduser){
             throw createHttpError(401,"Invalid Credentials");
         }
+
         const Newproject = await prisma.project.create({
             data:{
                 projectName:applicationName,
                 userId:apiKey,
                 signupType:signupType as SignupType
+            }
+        });
+
+        const project = await generateJwtToken(Newproject.projectName);
+        res.status(200).json({
+            message:"Project created Successfully ",
+            project :{
+                token:token,
+                projectName:project
             }
         });
         res.json({project : Newproject});

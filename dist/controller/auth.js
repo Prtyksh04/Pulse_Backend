@@ -1,40 +1,158 @@
-export const SignUp = async (req, res, next) => {
-    // const {username , email , password, picturePath , requestType} = req.body;
-    const { requestType } = req.body;
-    // let hashedPassword;
-    // try {
-    //     }
-    //     switch (requestType) {
-    //         case "Email-password":
-    //             if(!email || !password){
-    //                 throw createHttpError(400 , "Email and Password  are Required");
-    //             }
-    //             hashedPassword = await hashPassword(password);
-    //             //create jwt token 
-    //             //store the info in the database;
-    //             //send response
-    //             res.send("success");
-    //             break;
-    //         case "Email-username-Password":
-    //             if (!username || !email || !password) {
-    //                 throw createHttpError(400 , "Fields are required");
-    //             }
-    //             hashedPassword = await hashPassword(password);
-    //             //create jwt token 
-    //             //store the info in the database;
-    //             //send response
-    //             res.send("success");
-    //             break;
-    //         case "Github Auth":
-    //             //github Auth implementation here
-    //             break;
-    //         case "Google Auth":
-    //             //google Auth implementation here
-    //             break;
-    //         default:
-    //             break;
-    //     }
-    // } catch (error) {
-    //     next(error);
-    // }
+import createHttpError from "http-errors";
+import { PrismaClient } from "@prisma/client";
+import { hashString, verifyPassword, verifyUser } from "../utility/AuthUtility.js";
+const prisma = new PrismaClient();
+var SignupType;
+(function (SignupType) {
+    SignupType["EMAIL_PASSWORD"] = "EMAIL_PASSWORD";
+    SignupType["EMAIL_USERNAME_PASSWORD"] = "EMAIL_USERNAME_PASSWORD";
+    SignupType["GOOGLE_AUTH"] = "GOOGLE_AUTH";
+    SignupType["GITHUB_AUTH"] = "GITHUB_AUTH";
+})(SignupType || (SignupType = {}));
+const throwError = (status, message) => {
+    throw createHttpError(status, message);
+};
+const createClientUser = async (data) => {
+    return await prisma.clientUser.create({ data });
+};
+const checkClientUserUsingEmail = async (data) => {
+    return await prisma.clientUser.findUnique({
+        where: {
+            email: data.email
+        }, select: {
+            password: true,
+            email: true,
+        }
+    });
+};
+const checkClientUserUsingEmailOrUsername = async (data) => {
+    return await prisma.clientUser.findFirst({
+        where: {
+            OR: [
+                { email: data.email },
+                { username: data.username }
+            ]
+        }, select: {
+            password: true,
+            email: true,
+            username: true
+        }
+    });
+};
+export const AuthSignUp = async (req, res, next) => {
+    const { email, password, username, Google, Github, projectName, apiKey } = req.body;
+    try {
+        if (!projectName && !apiKey) {
+            throw createHttpError("Invalid Request");
+        }
+        const verifieduser = verifyUser(apiKey);
+        if (!verifieduser) {
+            throw createHttpError(401, "Invalid Request");
+        }
+        const userProject = await prisma.project.findUnique({
+            where: {
+                projectName: projectName,
+            }, select: {
+                signupType: true,
+                userId: true,
+                id: true,
+            }
+        });
+        if (!userProject) {
+            throw createHttpError(404, "project Not found");
+        }
+        let clientUser;
+        switch (userProject.signupType) {
+            case SignupType.EMAIL_PASSWORD:
+                if (!email || !password)
+                    throwError(400, "Password & email are required for email-password signup");
+                const hashedPassword = await hashString(password);
+                clientUser = await createClientUser({
+                    email,
+                    password: hashedPassword,
+                    project: { connect: { id: userProject.id } }
+                });
+                break;
+            case SignupType.EMAIL_USERNAME_PASSWORD:
+                if (!email || !password || !username)
+                    throwError(400, "Email, username, and password are required for email-username-password signup");
+                const hashedPasswordWithEmail = await hashString(password);
+                clientUser = await createClientUser({
+                    email,
+                    password: hashedPasswordWithEmail,
+                    username,
+                    project: { connect: { id: userProject.id } }
+                });
+                break;
+            default:
+                throwError(400, "Unsupported signup type");
+        }
+        res.status(200).json({
+            message: "User Created Successfully",
+            data: { user: clientUser }
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+export const AuthSignIn = async (req, res, next) => {
+    const { email, password, username, Google, Github, projectName, apiKey } = req.body;
+    try {
+        if (!projectName && !apiKey) {
+            throw createHttpError("Invalid Request");
+        }
+        const verifieduser = verifyUser(apiKey);
+        if (!verifieduser) {
+            throw createHttpError(401, "Invalid Request");
+        }
+        const userProject = await prisma.project.findUnique({
+            where: {
+                projectName: projectName,
+            }, select: {
+                signupType: true,
+                userId: true,
+                id: true,
+            }
+        });
+        if (!userProject) {
+            throw createHttpError(404, "project Not found");
+        }
+        let clientUser;
+        switch (userProject.signupType) {
+            case SignupType.EMAIL_PASSWORD:
+                if (!email || !password)
+                    throwError(400, "Password & email are required for email-password signup");
+                clientUser = await checkClientUserUsingEmail({ email });
+                if (!clientUser?.password) {
+                    throw throwError(400, "Password is Required for authentication");
+                }
+                const verifiedPassword = verifyPassword(password, clientUser.password);
+                if (!verifiedPassword) {
+                    throwError(400, "Invalid Request");
+                }
+                break;
+            case SignupType.EMAIL_USERNAME_PASSWORD:
+                if (!password || (!email && !username))
+                    throwError(400, "Email, username, and password are required for email-username-password signup");
+                clientUser = await checkClientUserUsingEmailOrUsername({ email, username });
+                if (!clientUser?.password) {
+                    throw throwError(400, "Password is Required for authentication");
+                }
+                const isPasswordValid = verifyPassword(password, clientUser.password);
+                if (!isPasswordValid) {
+                    throwError(400, "Invalid Request");
+                }
+                break;
+            default:
+                throwError(400, "Unsupported signup type");
+        }
+        res.status(200).json({
+            message: "User Created Successfully",
+            data: { user: clientUser }
+        });
+    }
+    catch (error) {
+        next(error);
+    }
 };
