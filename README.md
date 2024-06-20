@@ -14,3 +14,5 @@ Pulse Backend is a robust authentication and project management API designed to 
 3) Prisma
 4) JWT(Json Web Token)
 5) PostgreSQL
+6) Docker
+
