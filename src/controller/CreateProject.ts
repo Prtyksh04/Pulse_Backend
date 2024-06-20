@@ -2,10 +2,16 @@ import { NextFunction, Request, RequestHandler, Response } from "express";
 import createHttpError from "http-errors";
 import { projectBodytype } from "../schema/projectSchema.js";
 import { generateJwtToken, hashString } from "../utility/AuthUtility.js";
-import { PrismaClient, SignupType } from "@prisma/client";
+import { PrismaClient} from "@prisma/client";
 import { verifyJwtToken , verifyUser} from "../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 
+enum SignupType {
+    EMAIL_PASSWORD = "EMAIL_PASSWORD",
+    EMAIL_USERNAME_PASSWORD = "EMAIL_USERNAME_PASSWORD",
+    GOOGLE_AUTH = "GOOGLE_AUTH",
+    GITHUB_AUTH = "GITHUB_AUTH",
+}
 export const createApplication: RequestHandler = async (req: Request<{}, {}, projectBodytype>, res: Response, next: NextFunction) => {
     const { applicationName, signupType } = req.body;
     const cookie = req.headers.cookie;
