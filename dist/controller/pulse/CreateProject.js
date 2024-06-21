@@ -1,7 +1,7 @@
 import createHttpError from "http-errors";
-import { generateJwtToken, hashString } from "../utility/AuthUtility.js";
+import { generateJwtToken, hashString } from "../../utility/AuthUtility.js";
 import { PrismaClient } from "@prisma/client";
-import { verifyJwtToken, verifyUser } from "../utility/AuthUtility.js";
+import { verifyJwtToken, verifyUser } from "../../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 var SignupType;
 (function (SignupType) {

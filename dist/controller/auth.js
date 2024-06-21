@@ -148,7 +148,7 @@ export const AuthSignIn = async (req, res, next) => {
                 throwError(400, "Unsupported signup type");
         }
         res.status(200).json({
-            message: "User Created Successfully",
+            message: "User Identified Successfully",
             data: { user: clientUser }
         });
     }

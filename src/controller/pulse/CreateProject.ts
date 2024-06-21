@@ -1,9 +1,9 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import createHttpError from "http-errors";
-import { projectBodytype } from "../schema/projectSchema.js";
-import { generateJwtToken, hashString } from "../utility/AuthUtility.js";
+import { projectBodytype } from "../../schema/projectSchema.js";
+import { generateJwtToken, hashString } from "../../utility/AuthUtility.js";
 import { PrismaClient} from "@prisma/client";
-import { verifyJwtToken , verifyUser} from "../utility/AuthUtility.js";
+import { verifyJwtToken , verifyUser} from "../../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 
 enum SignupType {

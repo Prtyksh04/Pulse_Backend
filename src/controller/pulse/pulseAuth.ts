@@ -1,9 +1,9 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import createHttpError from "http-errors";
-import { hashString,generateApiKey, verifyPassword } from "../utility/AuthUtility.js";
+import { hashString,generateApiKey, verifyPassword } from "../../utility/AuthUtility.js";
 import { PrismaClient } from "@prisma/client";
-import { generateJwtToken } from "../utility/AuthUtility.js";
-import {PulseAuthBodyType} from "../schema/userSchema.js";
+import { generateJwtToken } from "../../utility/AuthUtility.js";
+import {PulseAuthBodyType} from "../../schema/userSchema.js";
 
 const prisma = new PrismaClient();
 
@@ -70,6 +70,21 @@ export const PulseSignIn :RequestHandler = async(req:Request<{},{},PulseAuthBody
         });
     } catch (error) {
         next(error)
+    }
+}
+
+export const pulseLogout =(req:Request , res: Response , next : NextFunction)=>{
+    try {
+        res.clearCookie("token",{
+            httpOnly:true,
+            sameSite:"strict"
+        });
+        res.status(200).json({
+            message:"Logout Successful"
+        })
+        
+    } catch (error) {
+        next(createHttpError(500 , "Failed to log out"));
     }
 }
 

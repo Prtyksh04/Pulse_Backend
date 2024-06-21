@@ -1,11 +1,10 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import createHttpError from "http-errors";
 import { PrismaClient } from "@prisma/client";
-import { AuthBodyType } from "../schema/AuthSchema.js";
-import { hashString,verifyPassword,verifyUser } from "../utility/AuthUtility.js";
+import { AuthBodyType } from "../../schema/AuthSchema.js";
+import { hashString,verifyPassword,verifyUser } from "../../utility/AuthUtility.js";
 
 const prisma = new PrismaClient();
-
 
 enum SignupType {
     EMAIL_PASSWORD = "EMAIL_PASSWORD",
@@ -162,6 +161,14 @@ export const AuthSignIn: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
             message: "User Identified Successfully",
             data: { user: clientUser }
         });
+    } catch (error) {
+        next(error);
+    }
+}
+
+export const AuthLogout = (req:Request , res : Response , next : NextFunction)=>{
+    try {
+        
     } catch (error) {
         next(error);
     }
