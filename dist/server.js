@@ -2,10 +2,12 @@ import express from "express";
 import PulseAuthRouter from "./router/pulseAuthRouter.js";
 import createApplicationRouter from "./router/createApplicationRouter.js";
 import AuthRouter from "./router/AuthRouter.js";
+import cors from "cors";
 import "dotenv/config";
 //middlewares
 const app = express();
 app.use(express.json());
+app.use(cors());
 //routers
 app.use("/auth", PulseAuthRouter);
 app.use("/dashboard", createApplicationRouter);

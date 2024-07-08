@@ -11,18 +11,19 @@ export const PulseSignUp = async (req, res, next) => {
         }
         const hashedPassword = await hashString(password);
         const apiKey = await generateApiKey({ email, password });
+        const token = await generateJwtToken(apiKey);
         const newUser = await prisma.pulseUser.create({
             data: {
                 email,
                 password: hashedPassword,
                 apiKey,
+                userApiKey: token,
             }
         });
         res.status(201).json({
             message: "User created Successfully",
             user: {
-                apiKey: newUser.apiKey,
-                email: newUser.email,
+                newUser
             }
         });
     }
@@ -38,6 +39,12 @@ export const PulseSignIn = async (req, res, next) => {
         }
         const user = await prisma.pulseUser.findUnique({
             where: { email },
+            select: {
+                password: true,
+                userApiKey: true,
+                email: true,
+                apiKey: true
+            }
         });
         if (!user) {
             throw createHttpError(401, "Invalid Email or Password");
@@ -46,7 +53,7 @@ export const PulseSignIn = async (req, res, next) => {
         if (!verifiedPassword) {
             throw createHttpError(401, "Invalid Email or Password");
         }
-        const token = await generateJwtToken(user.apiKey);
+        const token = user.userApiKey;
         res.cookie("token", token, {
             httpOnly: true,
             sameSite: "strict",
@@ -56,7 +63,6 @@ export const PulseSignIn = async (req, res, next) => {
             user: {
                 apiKey: user.apiKey,
                 email: user.email,
-                token: token
             }
         });
     }

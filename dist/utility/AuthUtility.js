@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import createHttpError from "http-errors";
 import { createHmac } from "crypto";
 import 'dotenv/config';
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
 export const hashString = async (password) => {
@@ -17,7 +17,7 @@ export const hashString = async (password) => {
 };
 export const verifyPassword = async (password, hashedPassword) => {
     try {
-        const match = bcrypt.compare(password, hashedPassword);
+        const match = await bcrypt.compare(password, hashedPassword);
         return match;
     }
     catch (error) {
@@ -35,13 +35,15 @@ export const generateApiKey = async (data) => {
 };
 export const generateJwtToken = async (userId) => {
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "100y",
     });
     return token;
 };
 export const verifyJwtToken = async (token) => {
+    console.log("Jwt function token :", token);
     try {
         const decode = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("decode :", decode);
         return decode;
     }
     catch (error) {

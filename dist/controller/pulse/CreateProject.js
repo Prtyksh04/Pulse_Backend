@@ -45,12 +45,20 @@ export const createApplication = async (req, res, next) => {
             }
         });
         const project = await generateJwtToken(Newproject.projectName);
+        const updatedProject = await prisma.project.update({
+            where: {
+                projectName: applicationName,
+                userId: apiKey,
+            },
+            data: { clientApiKey: project },
+        });
         res.status(200).json({
             message: "Project created Successfully ",
             project: {
                 token: token,
                 projectName: project
-            }
+            },
+            updatedProject
         });
         res.json({ project: Newproject });
     }

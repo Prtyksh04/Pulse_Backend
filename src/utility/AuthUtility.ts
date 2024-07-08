@@ -2,8 +2,12 @@ import bcrypt from "bcrypt";
 import createHttpError from "http-errors";
 import { createHmac } from "crypto";
 import 'dotenv/config';
-import jwt from "jsonwebtoken";
-import { boolean } from "zod";
+import jwt, { JwtPayload } from 'jsonwebtoken';
+
+interface DecodedToken extends JwtPayload {
+  userId: string;
+}
+
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient
@@ -19,7 +23,7 @@ export const hashString = async (password: string): Promise<string> => {
 
 export const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
     try {
-        const match = bcrypt.compare(password, hashedPassword);
+        const match = await bcrypt.compare(password, hashedPassword);
         return match;
     } catch (error) {
         throw createHttpError("Error verifying Password");
@@ -39,15 +43,17 @@ export const generateApiKey = async (data: { email: string, password: string }):
 
 export const generateJwtToken = async (userId: string): Promise<string> => {
     const token = jwt.sign({ userId }, process.env.JWT_SECRET!, {
-        expiresIn: "1h",
+        expiresIn: "100y",
     });
     return token;
 }
 
-export const verifyJwtToken = async (token: string) => {
+export const verifyJwtToken = async (token: string) : Promise<DecodedToken> => {
+    console.log("Jwt function token :" , token);
     try {
         const decode = jwt.verify(token, process.env.JWT_SECRET!)
-        return decode;
+        console.log("decode :" , decode);
+        return decode as DecodedToken;
     } catch (error) {
         throw createHttpError(401, "Invalid request");
     }
