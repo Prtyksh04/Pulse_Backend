@@ -1,6 +1,7 @@
 import createHttpError from "http-errors";
 import { PrismaClient } from "@prisma/client";
-import { hashString, verifyJwtToken, verifyPassword, verifyUser } from "../../utility/AuthUtility.js";
+import { generateOTP, hashString, verifyJwtToken, verifyPassword, verifyUser } from "../../utility/AuthUtility.js";
+import { sendOTPByEmail } from "../../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 var SignupType;
 (function (SignupType) {
@@ -26,7 +27,6 @@ const checkClientUserUsingEmail = async (data) => {
     });
 };
 const checkClientUserUsingEmailOrUsername = async (data) => {
-    console.log(data);
     return await prisma.clientUser.findFirst({
         where: {
             OR: [
@@ -41,11 +41,81 @@ const checkClientUserUsingEmailOrUsername = async (data) => {
     });
 };
 export const AuthSignUp = async (req, res, next) => {
-    const { email, password, username, projectName, apiKey } = req.body;
-    console.log(req.body);
+    const { email, projectName, apiKey } = req.body;
+    try {
+        if (!projectName && !apiKey) {
+            throw createHttpError(400, "Invalid Request");
+        }
+        if (!email) {
+            throw createHttpError(400, "Email not valid");
+        }
+        const verifiedToken = await verifyJwtToken(apiKey);
+        if (!verifiedToken) {
+            throw createHttpError(400, "Token provided is not valid");
+        }
+        const verifieduser = await verifyUser(verifiedToken.userId);
+        if (!verifieduser) {
+            throw createHttpError(401, "Invalid Request");
+        }
+        const userId = verifieduser.apiKey;
+        const project = await verifyJwtToken(projectName);
+        if (!project) {
+            throw createHttpError(400, "Cannot find the Signup type");
+        }
+        const projectIdentified = await prisma.project.findUnique({
+            where: {
+                projectName: project.userId,
+                userId: userId
+            },
+            select: {
+                signupType: true,
+                id: true,
+            }
+        });
+        if (!projectIdentified) {
+            throw createHttpError(404, "Project Not found");
+        }
+        const otpRecord = await prisma.otp.findFirst({
+            where: { email },
+            select: { otp: true, expiresAt: true }
+        });
+        let otp;
+        if (otpRecord && otpRecord.expiresAt > new Date()) {
+            otp = otpRecord.otp; // Resend existing OTP
+        }
+        else {
+            otp = generateOTP();
+            await prisma.otp.upsert({
+                where: { email },
+                update: {
+                    otp,
+                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                },
+                create: {
+                    email,
+                    otp,
+                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                }
+            });
+        }
+        await sendOTPByEmail(email, otp);
+        res.status(200).json({
+            message: "OTP sent to your Email",
+            data: { email }
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+export const verifyOTP = async (req, res, next) => {
+    const { email, password, username, projectName, otp, apiKey } = req.body;
     try {
         if (!projectName && !apiKey) {
             throw createHttpError("Invalid Request");
+        }
+        if (!email) {
+            throw createHttpError("Email not valid");
         }
         const verifiedToken = await verifyJwtToken(apiKey);
         if (!verifiedToken) {
@@ -73,6 +143,17 @@ export const AuthSignUp = async (req, res, next) => {
         if (!projectIdentified) {
             throw createHttpError(404, "project Not found");
         }
+        const otpRecord = await prisma.otp.findUnique({
+            where: {
+                email
+            }
+        });
+        if (!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date()) {
+            throw createHttpError(400, "Invalid or expired OTP");
+        }
+        await prisma.otp.delete({
+            where: { email }
+        });
         let clientUser;
         switch (projectIdentified.signupType) {
             case SignupType.EMAIL_PASSWORD:
@@ -100,8 +181,7 @@ export const AuthSignUp = async (req, res, next) => {
                 throwError(400, "Unsupported signup type");
         }
         res.status(200).json({
-            message: "User Created Successfully",
-            data: { user: clientUser }
+            message: "OTP Verified"
         });
     }
     catch (error) {
@@ -110,7 +190,6 @@ export const AuthSignUp = async (req, res, next) => {
 };
 export const AuthSignIn = async (req, res, next) => {
     const { password, email, projectName, apiKey } = req.body;
-    console.log(req.body);
     try {
         if (!projectName && !apiKey) {
             throw createHttpError("Invalid Request");
@@ -141,7 +220,6 @@ export const AuthSignIn = async (req, res, next) => {
         if (!projectIdentified) {
             throw createHttpError(404, "project Not found");
         }
-        console.log("Auth Singin Singuptype console.log : ", projectIdentified?.signupType);
         let clientUser;
         switch (projectIdentified.signupType) {
             case SignupType.EMAIL_PASSWORD:
@@ -151,8 +229,6 @@ export const AuthSignIn = async (req, res, next) => {
                 if (!clientUser?.password) {
                     throw throwError(400, "Password is Required for authentication");
                 }
-                console.log("clientUser.password", clientUser.password);
-                console.log("password :", password);
                 const verifiedPassword = await verifyPassword(password, clientUser.password);
                 if (!verifiedPassword) {
                     throwError(400, "Invalid Request");
@@ -165,8 +241,6 @@ export const AuthSignIn = async (req, res, next) => {
                 if (!clientUser?.password) {
                     throw throwError(400, "Password is Required for authentication");
                 }
-                console.log("clientUser.password", clientUser.password);
-                console.log("password", password);
                 const isPasswordValid = await verifyPassword(password, clientUser.password);
                 if (!isPasswordValid) {
                     throwError(400, "Invalid Request");
@@ -193,15 +267,12 @@ export const AuthLogout = (req, res, next) => {
 };
 export const formType = async (req, res, next) => {
     const { token, projectName } = req.body;
-    console.log(req.body);
     try {
         const verifiedToken = await verifyJwtToken(token);
         if (!verifiedToken) {
             throw createHttpError("User Not identified");
         }
-        console.log("decodeUser : ", verifiedToken);
         const verifieduser = await verifyUser(verifiedToken.userId);
-        console.log("verifieduser : ", verifieduser);
         if (!verifieduser) {
             throw createHttpError(401, "Invalid Request");
         }
@@ -210,7 +281,6 @@ export const formType = async (req, res, next) => {
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
         }
-        console.log("project : ", project);
         const projectIdentified = await prisma.project.findUnique({
             where: {
                 projectName: project.userId,
@@ -220,12 +290,10 @@ export const formType = async (req, res, next) => {
                 signupType: true,
             }
         });
-        console.log("projectIdentified : ", projectIdentified);
         const formtype = projectIdentified?.signupType;
         if (!formtype) {
             throw createHttpError("Invalid Form type , Please try again");
         }
-        console.log("formtype : ", formtype);
         res.status(200).json(formtype);
     }
     catch (error) {

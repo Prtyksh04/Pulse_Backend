@@ -6,4 +6,5 @@ router.post("/Auth/SignUp", AuthController.AuthSignUp);
 router.post("/Auth/SignIn", rateLimiter, AuthController.AuthSignIn);
 router.post("/Auth/formtype", AuthController.formType);
 router.post("Auth/logout", AuthController.AuthLogout);
+router.post("/Auth/verifyotp", AuthController.verifyOTP);
 export default router;

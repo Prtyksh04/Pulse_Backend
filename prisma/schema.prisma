@@ -38,6 +38,14 @@ model ClientUser {
   projectId Int
 }
 
+model Otp {
+    id        Int      @id @default(autoincrement())
+    email     String   @unique
+    otp       String
+    expiresAt DateTime
+}
+
+
 enum SignupType {
   EMAIL_PASSWORD
   EMAIL_USERNAME_PASSWORD

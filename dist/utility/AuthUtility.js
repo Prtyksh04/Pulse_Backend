@@ -3,6 +3,7 @@ import createHttpError from "http-errors";
 import { createHmac } from "crypto";
 import 'dotenv/config';
 import jwt from 'jsonwebtoken';
+import nodemailer from "nodemailer";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
 export const hashString = async (password) => {
@@ -40,10 +41,8 @@ export const generateJwtToken = async (userId) => {
     return token;
 };
 export const verifyJwtToken = async (token) => {
-    console.log("Jwt function token :", token);
     try {
         const decode = jwt.verify(token, process.env.JWT_SECRET);
-        console.log("decode :", decode);
         return decode;
     }
     catch (error) {
@@ -57,4 +56,30 @@ export const verifyUser = async (apiKey) => {
         }
     });
     return verifiedUser;
+};
+export const generateOTP = () => {
+    const digits = "0123456789";
+    let otp = "";
+    for (let i = 0; i < 6; i++) {
+        otp += digits[Math.floor(Math.random() * 10)];
+    }
+    return otp;
+};
+export const sendOTPByEmail = async (email, otp) => {
+    const transpoter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Verification Code for Signup From Pulse",
+        text: `Your OTP for Authentication is : ${otp} . This OTP is valid for 10 mins Only.`
+    };
+    await transpoter.sendMail(mailOptions);
 };
