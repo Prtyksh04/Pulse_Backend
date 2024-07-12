@@ -164,7 +164,7 @@ export const verifyOTP : RequestHandler = async(req : Request<{} , {} , AuthBody
         });
 
         if(!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date() ){
-            throw createHttpError(400 , "Invalid or expired OTP");
+            res.status(400).json({message:"Invalid Or expired OTP"});
         }
 
         await prisma.otp.delete({
@@ -248,7 +248,7 @@ export const AuthSignIn: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
                 }
                 const verifiedPassword = await verifyPassword(password, clientUser.password);
                 if (!verifiedPassword) {
-                    throwError(400, "Invalid Request");
+                    res.status(401).json({message : "Invalid password or username"});
                 }
                 break;
             case SignupType.EMAIL_USERNAME_PASSWORD:

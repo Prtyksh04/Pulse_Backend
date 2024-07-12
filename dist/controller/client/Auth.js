@@ -231,7 +231,7 @@ export const AuthSignIn = async (req, res, next) => {
                 }
                 const verifiedPassword = await verifyPassword(password, clientUser.password);
                 if (!verifiedPassword) {
-                    throwError(400, "Invalid Request");
+                    res.status(401).json({ message: "Invalid password or username" });
                 }
                 break;
             case SignupType.EMAIL_USERNAME_PASSWORD:

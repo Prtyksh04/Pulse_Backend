@@ -22,7 +22,8 @@ const rateLimiter = (req, res, next) => {
     const lastAttemptTime = loginAttempts[email]?.lastAttemptTime || 0;
     if (attempts >= RATE_LIMIT && now - lastAttemptTime < COOLDOWN_PERIOD) {
         const waitTime = Math.ceil((COOLDOWN_PERIOD - (now - lastAttemptTime)) / 1000);
-        throw createHttpError(429, `Too many attempts. Try again in ${waitTime} seconds`);
+        // throw createHttpError(429, `Too many attempts. Try again in ${waitTime} seconds`);
+        res.status(429).json({ message: "Too Many attempts . Try again in ${waitTime} secounds" });
     }
     loginAttempts[email] = {
         count: attempts + 1,
