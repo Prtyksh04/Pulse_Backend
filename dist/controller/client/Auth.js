@@ -2,6 +2,7 @@ import createHttpError from "http-errors";
 import { PrismaClient } from "@prisma/client";
 import { generateOTP, hashString, verifyJwtToken, verifyPassword, verifyUser } from "../../utility/AuthUtility.js";
 import { sendOTPByEmail } from "../../utility/AuthUtility.js";
+import redisClient from "../../redisClient.js";
 const prisma = new PrismaClient();
 var SignupType;
 (function (SignupType) {
@@ -89,12 +90,12 @@ export const AuthSignUp = async (req, res, next) => {
                 where: { email },
                 update: {
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                    expiresAt: new Date(Date.now() + 10 * 60000)
                 },
                 create: {
                     email,
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                    expiresAt: new Date(Date.now() + 10 * 60000)
                 }
             });
         }
@@ -149,7 +150,7 @@ export const verifyOTP = async (req, res, next) => {
             }
         });
         if (!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date()) {
-            throw createHttpError(400, "Invalid or expired OTP");
+            res.status(400).json({ message: "Invalid Or expired OTP" });
         }
         await prisma.otp.delete({
             where: { email }
@@ -268,6 +269,10 @@ export const AuthLogout = (req, res, next) => {
 export const formType = async (req, res, next) => {
     const { token, projectName } = req.body;
     try {
+        const CachedFormType = await redisClient.get(`${token}:${projectName}`);
+        if (CachedFormType) {
+            return res.status(200).json(CachedFormType);
+        }
         const verifiedToken = await verifyJwtToken(token);
         if (!verifiedToken) {
             throw createHttpError("User Not identified");
@@ -294,6 +299,7 @@ export const formType = async (req, res, next) => {
         if (!formtype) {
             throw createHttpError("Invalid Form type , Please try again");
         }
+        await redisClient.set(`${token}:${projectName}`, formtype, "EX", 3600);
         res.status(200).json(formtype);
     }
     catch (error) {

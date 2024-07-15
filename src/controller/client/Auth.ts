@@ -3,8 +3,8 @@ import createHttpError from "http-errors";
 import { PrismaClient } from "@prisma/client";
 import { AuthBodyType } from "../../schema/AuthSchema.js";
 import { generateOTP, hashString, verifyJwtToken, verifyPassword, verifyUser } from "../../utility/AuthUtility.js";
-import { sendOTPByEmail } from "../../utility/AuthUtility.js";
-
+import { sendOTPByEmail } from "../../utility/AuthUtility.js";  
+import redisClient from "../../redisClient.js";
 const prisma = new PrismaClient();
 
 enum SignupType {
@@ -99,12 +99,12 @@ export const AuthSignUp: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
                 where: { email },
                 update: {
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                    expiresAt: new Date(Date.now() + 10 * 60000) 
                 },
                 create: {
                     email,
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) // 10 minutes from now
+                    expiresAt: new Date(Date.now() + 10 * 60000) 
                 }
             });
         }
@@ -291,6 +291,11 @@ interface formType {
 export const formType: RequestHandler = async (req: Request<{}, {}, formType>, res: Response, next: NextFunction) => {
     const { token, projectName } = req.body;
     try {
+
+        const CachedFormType = await redisClient.get(`${token}:${projectName}`);
+        if(CachedFormType){
+            return res.status(200).json(CachedFormType);
+        }
         const verifiedToken = await verifyJwtToken(token);
         if (!verifiedToken) {
             throw createHttpError("User Not identified");
@@ -319,6 +324,8 @@ export const formType: RequestHandler = async (req: Request<{}, {}, formType>, r
         if (!formtype) {
             throw createHttpError("Invalid Form type , Please try again");
         }
+
+        await redisClient.set(`${token}:${projectName}`, formtype, "EX", 3600);
         res.status(200).json(formtype);
     } catch (error) {
         next(error);
