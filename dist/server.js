@@ -7,7 +7,10 @@ import "dotenv/config";
 //middlewares
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
 //routers
 app.use("/auth", PulseAuthRouter);
 app.use("/dashboard", createApplicationRouter);

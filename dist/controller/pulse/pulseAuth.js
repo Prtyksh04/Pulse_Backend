@@ -56,7 +56,8 @@ export const PulseSignIn = async (req, res, next) => {
         const token = user.userApiKey;
         res.cookie("token", token, {
             httpOnly: true,
-            sameSite: "strict",
+            sameSite: "none",
+            secure: true
         });
         res.status(200).json({
             message: "Login Successfull",

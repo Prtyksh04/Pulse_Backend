@@ -82,7 +82,7 @@ export const AuthSignUp = async (req, res, next) => {
         });
         let otp;
         if (otpRecord && otpRecord.expiresAt > new Date()) {
-            otp = otpRecord.otp; // Resend existing OTP
+            otp = otpRecord.otp;
         }
         else {
             otp = generateOTP();

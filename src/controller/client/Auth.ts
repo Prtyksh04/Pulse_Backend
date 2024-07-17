@@ -92,7 +92,7 @@ export const AuthSignUp: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
 
         let otp: string;
         if (otpRecord && otpRecord.expiresAt > new Date()) {
-            otp = otpRecord.otp; // Resend existing OTP
+            otp = otpRecord.otp; 
         } else {
             otp = generateOTP();
             await prisma.otp.upsert({
