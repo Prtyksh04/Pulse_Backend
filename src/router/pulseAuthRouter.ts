@@ -7,8 +7,7 @@ const router = express.Router();
 
 router.post("/pulseAuthSignUp",validatedata(PulseAuthBody),PulseAuthController.PulseSignUp);
 router.post("/pulseAuthSignIn",validatedata(PulseAuthBody),PulseAuthController.PulseSignIn);
+router.post("/pulseVerifyOtp" , validatedata(PulseAuthBody) , PulseAuthController.PulseverifyOTP);
 router.post("/pulseLogout",PulseAuthController.pulseLogout);
 
 export default router;
-
-

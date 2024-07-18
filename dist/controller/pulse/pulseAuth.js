@@ -2,13 +2,81 @@ import createHttpError from "http-errors";
 import { hashString, generateApiKey, verifyPassword } from "../../utility/AuthUtility.js";
 import { PrismaClient } from "@prisma/client";
 import { generateJwtToken } from "../../utility/AuthUtility.js";
+import { generateOTP, sendOTPByEmail } from "../../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 export const PulseSignUp = async (req, res, next) => {
-    const { email, password } = req.body;
+    const { email, password, otp } = req.body;
+    console.log(req.body);
     try {
         if (!email || !password) {
             throw createHttpError(400, "Email and Password are required");
         }
+        const otpRecord = await prisma.otp.findFirst({
+            where: { email },
+            select: { otp: true, expiresAt: true }
+        });
+        let otp;
+        if (otpRecord && otpRecord.expiresAt > new Date()) {
+            otp = otpRecord.otp;
+        }
+        else {
+            otp = generateOTP();
+            await prisma.otp.upsert({
+                where: { email },
+                update: {
+                    otp,
+                    expiresAt: new Date(Date.now() + 10 * 60000)
+                },
+                create: {
+                    email,
+                    otp,
+                    expiresAt: new Date(Date.now() + 10 * 60000)
+                }
+            });
+        }
+        await sendOTPByEmail(email, otp);
+        res.status(200).json({
+            message: "OTP send to your Email",
+            data: { email }
+        });
+        // const hashedPassword = await hashString(password);
+        // const apiKey = await  generateApiKey({email , password});
+        // const token = await generateJwtToken(apiKey);
+        // const newUser = await prisma.pulseUser.create({
+        //     data:{
+        //         email,
+        //         password:hashedPassword,
+        //         apiKey,
+        //         userApiKey:token,
+        //     }
+        // });
+        // res.status(201).json({
+        //     message:"User created Successfully",
+        //     user:{
+        //         newUser
+        //     }
+        // });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+export const PulseverifyOTP = async (req, res, next) => {
+    const { email, password, otp } = req.body;
+    try {
+        if (!email || !password) {
+            throw createHttpError(400, "Email and Password are required");
+        }
+        const otpRecord = await prisma.otp.findFirst({
+            where: { email },
+            select: { otp: true, expiresAt: true }
+        });
+        if (!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date()) {
+            res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+        await prisma.otp.delete({
+            where: { email }
+        });
         const hashedPassword = await hashString(password);
         const apiKey = await generateApiKey({ email, password });
         const token = await generateJwtToken(apiKey);
