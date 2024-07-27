@@ -16,15 +16,26 @@ model pulseUser {
 }
 
 model Project {
-  id           Int          @id @default(autoincrement())
-  projectName  String       @unique
-  signupType   SignupType?
-  clientApiKey String?      @unique
-  owner        pulseUser    @relation(fields: [userId], references: [apiKey])
-  userId       String
-  ClientUser   ClientUser[]
+  id               Int               @id @default(autoincrement())
+  projectName      String            @unique
+  signupType       SignupType?
+  clientApiKey     String?           @unique
+  owner            pulseUser         @relation(fields: [userId], references: [apiKey])
+  userId           String
+  ClientUser       ClientUser[]
+  viteEnvVariables ViteEnvVariables[]
 
   @@unique([userId, projectName])
+}
+
+model ViteEnvVariables {
+  id           Int     @id @default(autoincrement())
+  projectName  String
+  apiKey       String
+  projectToken String
+  project      Project @relation(fields: [projectName], references: [projectName])
+
+  @@unique([projectName, apiKey, projectToken])
 }
 
 model ClientUser {
@@ -39,12 +50,11 @@ model ClientUser {
 }
 
 model Otp {
-    id        Int      @id @default(autoincrement())
-    email     String   @unique
-    otp       String
-    expiresAt DateTime
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime
 }
-
 
 enum SignupType {
   EMAIL_PASSWORD

@@ -18,7 +18,7 @@ const createClientUser = async (data) => {
     return await prisma.clientUser.create({ data });
 };
 const checkClientUserUsingEmail = async (data) => {
-    return await prisma.clientUser.findUnique({
+    return await prisma.clientUser.findFirst({
         where: {
             email: data.email
         }, select: {
@@ -63,7 +63,7 @@ export const AuthSignUp = async (req, res, next) => {
         if (!project) {
             throw createHttpError(400, "Cannot find the Signup type");
         }
-        const projectIdentified = await prisma.project.findUnique({
+        const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId,
                 userId: userId
@@ -131,7 +131,7 @@ export const verifyOTP = async (req, res, next) => {
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
         }
-        const projectIdentified = await prisma.project.findUnique({
+        const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId,
                 userId: userId
@@ -144,7 +144,7 @@ export const verifyOTP = async (req, res, next) => {
         if (!projectIdentified) {
             throw createHttpError(404, "project Not found");
         }
-        const otpRecord = await prisma.otp.findUnique({
+        const otpRecord = await prisma.otp.findFirst({
             where: {
                 email
             }
@@ -208,7 +208,7 @@ export const AuthSignIn = async (req, res, next) => {
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
         }
-        const projectIdentified = await prisma.project.findUnique({
+        const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId,
                 userId: userId

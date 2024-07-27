@@ -3,10 +3,10 @@ import { hashString, generateApiKey, verifyPassword } from "../../utility/AuthUt
 import { PrismaClient } from "@prisma/client";
 import { generateJwtToken } from "../../utility/AuthUtility.js";
 import { generateOTP, sendOTPByEmail } from "../../utility/AuthUtility.js";
+import { verifyJwtToken, verifyUser } from "../../utility/AuthUtility.js";
 const prisma = new PrismaClient();
 export const PulseSignUp = async (req, res, next) => {
-    const { email, password, otp } = req.body;
-    console.log(req.body);
+    const { email, password } = req.body;
     try {
         if (!email || !password) {
             throw createHttpError(400, "Email and Password are required");
@@ -39,23 +39,6 @@ export const PulseSignUp = async (req, res, next) => {
             message: "OTP send to your Email",
             data: { email }
         });
-        // const hashedPassword = await hashString(password);
-        // const apiKey = await  generateApiKey({email , password});
-        // const token = await generateJwtToken(apiKey);
-        // const newUser = await prisma.pulseUser.create({
-        //     data:{
-        //         email,
-        //         password:hashedPassword,
-        //         apiKey,
-        //         userApiKey:token,
-        //     }
-        // });
-        // res.status(201).json({
-        //     message:"User created Successfully",
-        //     user:{
-        //         newUser
-        //     }
-        // });
     }
     catch (error) {
         next(error);
@@ -151,5 +134,52 @@ export const pulseLogout = (req, res, next) => {
     }
     catch (error) {
         next(createHttpError(500, "Failed to log out"));
+    }
+};
+export const fetchClientUser = async (req, res, next) => {
+    const cookie = req.headers.cookie;
+    try {
+        const token = cookie
+            ?.split(";")
+            .map(cookie => cookie.trim()).find(cookie => cookie.startsWith("token"))
+            ?.split('=')[1];
+        if (!token) {
+            throw createHttpError("Invalid Request");
+        }
+        const projectToken = cookie
+            ?.split(";")
+            .map(cookie => cookie.trim()).find(cookie => cookie.startsWith("projectName"))
+            ?.split('=')[1];
+        if (!projectToken) {
+            throw createHttpError("Invalid projectName");
+        }
+        const decoded = await verifyJwtToken(token);
+        const apiKey = decoded.userId;
+        const verifieduser = verifyUser(apiKey);
+        if (!verifieduser) {
+            throw createHttpError(401, "Invalid Credentials");
+        }
+        const decodedProjectName = await verifyJwtToken(projectToken);
+        console.group(decodedProjectName);
+        const project = await prisma.project.findUnique({
+            where: {
+                projectName: decodedProjectName.userId,
+            },
+        });
+        if (!project) {
+            throw createHttpError(404, "Project not found");
+        }
+        const users = await prisma.clientUser.findMany({
+            where: {
+                projectId: project.id,
+            },
+            select: {
+                email: true
+            }
+        });
+        res.status(200).json({ data: users });
+    }
+    catch (error) {
+        next(error);
     }
 };

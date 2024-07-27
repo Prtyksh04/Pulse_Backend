@@ -3,7 +3,7 @@ import createHttpError from "http-errors";
 import { PrismaClient } from "@prisma/client";
 import { AuthBodyType } from "../../schema/AuthSchema.js";
 import { generateOTP, hashString, verifyJwtToken, verifyPassword, verifyUser } from "../../utility/AuthUtility.js";
-import { sendOTPByEmail } from "../../utility/AuthUtility.js";  
+import { sendOTPByEmail } from "../../utility/AuthUtility.js";
 import redisClient from "../../redisClient.js";
 const prisma = new PrismaClient();
 
@@ -23,12 +23,13 @@ const createClientUser = async (data: any) => {
 };
 
 const checkClientUserUsingEmail = async (data: any) => {
-    return await prisma.clientUser.findUnique({
+    return await prisma.clientUser.findFirst({
         where: {
             email: data.email
         }, select: {
             password: true,
             email: true,
+
         }
     });
 }
@@ -71,7 +72,7 @@ export const AuthSignUp: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
         if (!project) {
             throw createHttpError(400, "Cannot find the Signup type");
         }
-        const projectIdentified = await prisma.project.findUnique({
+        const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId as string,
                 userId: userId
@@ -92,23 +93,23 @@ export const AuthSignUp: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
 
         let otp: string;
         if (otpRecord && otpRecord.expiresAt > new Date()) {
-            otp = otpRecord.otp; 
+            otp = otpRecord.otp;
         } else {
             otp = generateOTP();
             await prisma.otp.upsert({
                 where: { email },
                 update: {
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) 
+                    expiresAt: new Date(Date.now() + 10 * 60000)
                 },
                 create: {
                     email,
                     otp,
-                    expiresAt: new Date(Date.now() + 10 * 60000) 
+                    expiresAt: new Date(Date.now() + 10 * 60000)
                 }
             });
         }
-        
+
         await sendOTPByEmail(email, otp);
         res.status(200).json({
             message: "OTP sent to your Email",
@@ -120,14 +121,14 @@ export const AuthSignUp: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
 }
 
 
-export const verifyOTP : RequestHandler = async(req : Request<{} , {} , AuthBodyType> , res :Response , next : NextFunction)=>{
-    const {email , password , username , projectName , otp , apiKey } = req.body;
+export const verifyOTP: RequestHandler = async (req: Request<{}, {}, AuthBodyType>, res: Response, next: NextFunction) => {
+    const { email, password, username, projectName, otp, apiKey } = req.body;
 
     try {
         if (!projectName && !apiKey) {
             throw createHttpError("Invalid Request");
         }
-        if(!email){
+        if (!email) {
             throw createHttpError("Email not valid");
         }
         const verifiedToken = await verifyJwtToken(apiKey);
@@ -138,37 +139,37 @@ export const verifyOTP : RequestHandler = async(req : Request<{} , {} , AuthBody
         if (!verifieduser) {
             throw createHttpError(401, "Invalid Request");
         }
-        const userId =  verifieduser.apiKey;
+        const userId = verifieduser.apiKey;
         const project = await verifyJwtToken(projectName);
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
         }
-        const projectIdentified = await prisma.project.findUnique({
+        const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId as string,
                 userId: userId
             },
             select: {
                 signupType: true,
-                id:true,
+                id: true,
             }
         });
         if (!projectIdentified) {
             throw createHttpError(404, "project Not found");
         }
 
-        const otpRecord = await prisma.otp.findUnique({
-            where :{
+        const otpRecord = await prisma.otp.findFirst({
+            where: {
                 email
             }
         });
 
-        if(!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date() ){
-            res.status(400).json({message:"Invalid Or expired OTP"});
+        if (!otpRecord || otpRecord.otp != otp || otpRecord.expiresAt < new Date()) {
+            res.status(400).json({ message: "Invalid Or expired OTP" });
         }
 
         await prisma.otp.delete({
-            where:{email}
+            where: { email }
         });
         let clientUser;
         switch (projectIdentified.signupType) {
@@ -197,7 +198,7 @@ export const verifyOTP : RequestHandler = async(req : Request<{} , {} , AuthBody
         }
 
         res.status(200).json({
-            message:"OTP Verified"
+            message: "OTP Verified"
         });
 
     } catch (error) {
@@ -207,7 +208,7 @@ export const verifyOTP : RequestHandler = async(req : Request<{} , {} , AuthBody
 }
 
 export const AuthSignIn: RequestHandler = async (req: Request<{}, {}, AuthBodyType>, res: Response, next: NextFunction) => {
-    const { password ,email, projectName, apiKey } = req.body;
+    const { password, email, projectName, apiKey } = req.body;
     try {
         if (!projectName && !apiKey) {
             throw createHttpError("Invalid Request");
@@ -220,18 +221,18 @@ export const AuthSignIn: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
         if (!verifieduser) {
             throw createHttpError(401, "Invalid Request");
         }
-        const userId =  verifieduser.apiKey;
+        const userId = verifieduser.apiKey;
         const project = await verifyJwtToken(projectName);
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
-        }const projectIdentified = await prisma.project.findUnique({
+        } const projectIdentified = await prisma.project.findFirst({
             where: {
                 projectName: project.userId as string,
                 userId: userId
             },
             select: {
                 signupType: true,
-                id:true,
+                id: true,
             }
         });
         if (!projectIdentified) {
@@ -248,11 +249,11 @@ export const AuthSignIn: RequestHandler = async (req: Request<{}, {}, AuthBodyTy
                 }
                 const verifiedPassword = await verifyPassword(password, clientUser.password);
                 if (!verifiedPassword) {
-                    res.status(401).json({message : "Invalid password or username"});
+                    res.status(401).json({ message: "Invalid password or username" });
                 }
                 break;
             case SignupType.EMAIL_USERNAME_PASSWORD:
-                if (!password || (!email )) throwError(400, "Email, username, and password are required for email-username-password signup");
+                if (!password || (!email)) throwError(400, "Email, username, and password are required for email-username-password signup");
 
                 clientUser = await checkClientUserUsingEmailOrUsername({ email });
                 if (!clientUser?.password) {
@@ -293,7 +294,7 @@ export const formType: RequestHandler = async (req: Request<{}, {}, formType>, r
     try {
 
         const CachedFormType = await redisClient.get(`${token}:${projectName}`);
-        if(CachedFormType){
+        if (CachedFormType) {
             return res.status(200).json(CachedFormType);
         }
         const verifiedToken = await verifyJwtToken(token);
@@ -310,7 +311,7 @@ export const formType: RequestHandler = async (req: Request<{}, {}, formType>, r
         const project = await verifyJwtToken(projectName);
         if (!project) {
             throw createHttpError("Cannot find the Signup type");
-        } 
+        }
         const projectIdentified = await prisma.project.findUnique({
             where: {
                 projectName: project.userId as string,
